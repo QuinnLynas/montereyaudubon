@@ -1,0 +1,255 @@
+---
+title: "Data Cleaning and Visualization Guide"
+author: "Quinn Lynas and Bayard Vinant-Tang"
+date: "2025-04-25"
+output: 
+  html_document:
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+#This is our setup chunk, where we load any necessary packages for our work.
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) #loads tidyverse, a collection of packages that help with data cleaning
+library(janitor) #loads janitor package, which includes functions that help with variable name cleaning
+```
+
+### Step 1: Loading in and Preparing Seawatch Data
+
+The first step in our data cleaning process is to read in the Seawatch data. The chunk below demonstrates the necessary steps to get the Seawatch data into our working environment. For the purpose of this study, we filter out any of the observations that are not of interest (not Pacific Loon, Red-throated Loon, or Surf Scoter). Note that, in the future, it would be very easy to include other species if that was desired. In addition to the filtering, we also need to correct an observation. That is demonstrated in the code below as well. We had one observation that was labeled "X", but the notes indicated that there was in fact 1 bird observed. Other than that, there were no issues that needed to be resolved. In order to prepare the data to merge with NOAA's data, we needed to extract the hour of day for each observation. 
+
+```{r read in Seawatch data, warning = FALSE}
+###LOAD IN SEAWATCH DATA###
+
+seawatch <- read_csv("250131_SeawatchDownload.csv", show_col_types = FALSE)  
+
+###CLEAN VARIABLE NAMES FOR SEAWATCH DATA###
+
+seawatch <- clean_names(seawatch)
+
+###SELECT BIRD SPECIES WE ARE INTERESTED IN###
+
+seawatch <- seawatch |>
+  filter(common_name %in% c("Pacific Loon", "Red-throated Loon", "Surf Scoter"))  #filter function allows us to select the specific species we want to be in our analysis. If you wanted to include more or less species, simply add another comma and in quotation marks put the name of the species.
+
+###FIX ANY DISCREPANCIES IN THE DATA###
+#We have one observation marked as X in the count, but we see in the details that there was 1 bird observed, we will manually change the X to 1. Then we need to make sure the count variable is considered numeric in the data.
+
+seawatch <- seawatch |>
+  mutate(count = case_when(  #mutate function allows us to manipulate the variable, we select the count variable then search for the case when it is "X", convert it to "1", then convert the count to a double (numeric).
+    count == "X" ~ "1",
+    .default = count),
+        count = as.double(count))
+
+
+###CREATE AN HOUR VARIABLE, THIS HELPS US JOIN SEAWATCH AND NOAA DATA###
+seawatch <- seawatch |>
+  mutate(HR = substr(time, start = 1, stop = 2))
+
+```
+
+> The seawatch data is now prepared for our NOAA data. Next we will read in the NOAA data.
+
+### Step 2: Loading in and Preparing NOAA Data
+
+The next step requires a different approach. NOAA doesn't have their data in .csv files, unfortunately, so we need a new function. Instructions on where to find the NOAA dataset will be included on a different slide. I will start by saying that the example for future NOAA should work every time, so long as you include the both the read_table() function and then afterwards the type_convert() function. Note that the file name will be different (this file is called "Data/2023_MBM1.txt") so you'll need to know the name of your file before loading it in. Since the Seawatch Program is held only in November and December, we remove any data outside of those months. Also, the Monterey Bay buoy doesn't collect information for some variables that other buoys have, so we opt to keep only the columns with information. Additionally, we create a date variable, this will be useful for merging later on.
+
+```{r read in NOAA data future}
+###EXAMPLE FOR FUTURE NOAA DATA###
+
+NOAA_2023 <- data.frame(read_table("Data/2023_MBM1.txt", col_names = c("YR", "MM", "DD", "HR", "MN", "WDIR_degT", "WSPD_m/s", "GST_m/s", "WVHT_m", "DPD_sec", "APD_sec", "MWD_degT", "PRES_hPa", "ATMP_degC", "WTMP_degC", "DEWP_degC", "VIS_mi", "TIDE_ft"), skip = 2, na = c("999.00", "99.00", "99", "99.0", "999.0", "999"), col_types = cols(.default = "c")))
+
+# We converted values to characters so that we can detect all NA's in the data, now we need to convert back to normal values
+
+NOAA_2023 <- type_convert(NOAA_2023, col_types = cols())  #type_convert converts column types back to original (in this case we let the software guess what the type is by specifying col_types = cols())
+
+## Note that we need to use different functions than we used for the seawatch data. NOAA data is typically in .txt format, and the read_table function is what we use. However, we need to make sure that read_table is in data frame format, so we use data.frame(read_table()). Additionally, the NOAA data has messy names for it's data, so we specify each column name, and we skip the first 2 lines in the data (these lines are not important, they are just descriptors and they will mess up the how the data is read in if they are not skipped). We also specify our NA values as different combinations of "999" or "99, which are typically NOAA's input for missing values.
+
+###CLEAN EXAMPLE DATA SO THAT IT IS READY TO JOIN WITH SEAWATCH###
+NOAA_2023 <- NOAA_2023 |>
+  filter(MM %in% c("11", "12")) |>
+###REMOVE ANY COLUMNS WE WILL NOT BE USING###
+  select(c(1:7 , 13:15)) |>
+###CREATE A DATE VARIABLE (Helps when we join seawatch and NOAA data)###
+  mutate(date = paste0(YR, sep = "-", MM, sep = "-", DD))
+
+###END OF EXAMPLE FOR FUTURE DATA###
+
+```
+
+### Step 3: Load in NOAA Data from 2015-2024
+
+Luckily we've synthesized NOAA data from 2015-2024, and we can read this data in fairly easily. The next code chunk will demonstrate reading in the data from 2015-2024, then how we can add more NOAA data to that, then join our data with the Seawatch data.
+
+```{r read in NOAA data 2015-2024, warning=FALSE}
+###READ IN DATASET###
+NOAA2015_2024 <- read_csv("noaa15-24.csv", show_col_types = FALSE) |>
+  select(-1) #first column in the dataset is an index variable, we do not need it so select(-1) removes the first column
+
+###COMBINE OUR PAST NOAA DATA AND NEW NOAA DATA###
+#as an example, I will have an empty data set with the name of the new data
+NOAA_2025 = data.frame()
+ALL_NOAA = rbind(NOAA2015_2024, NOAA_2025) #Note that these two data frames MUST have the same number of rows, as long as you follow the process from above that will always be the case.
+
+###SPECIFY HOW WE WILL JOIN OUR DATA###
+by = join_by(date, HR)  #This is why we created a date and HR variable in our datasets, we join our variables this way so that our times and dates are matched perfectly!
+
+###JOIN OUR DATASETS TOGETHER###
+Seawatch_NOAA <- right_join(NOAA2015_2024, seawatch, by = by) #We use a right join so that we keep all info in our right dataset (seawatch), information in the NOAA data that doesn't match will not be included (i.e. the hours during the night will not be included)
+
+```
+
+### Step 4: Prepare Data for Analysis and Visualization
+
+The data is ready to analyze. Next we want to create some new variables that will aid in our visualizations. 
+
+```{r variable creation, warning= FALSE}
+### First we will convert meters per second to miles per hour ###
+### This will aid in making the beaufort wind scale ###
+Seawatch_NOAA <- Seawatch_NOAA |>
+  mutate(WSPD_mph = WSPD_m.s * 2.237, #convert meters per second to miles per hour
+         beaufort_ws = factor(cut(WSPD_mph, breaks = c(-0.001, 1, 3, 7, 12, 18, 24, 31, 38, 46, 54, 63, 72, 83)))) #specify the different ranges for the beaufort wind scale
+levels(Seawatch_NOAA$beaufort_ws) <- c("0", "1", "2", "3", "4", "5", "6", "7") #label each level for the wind scale
+
+### Next we will add compass directions, which may help when interpretting wind directions in our visualizations ###
+Seawatch_NOAA <- Seawatch_NOAA |>
+  mutate(comp_dir = factor(cut(WDIR_degT, breaks = seq(0, 360, by = 22.5)))) #break up degress for compass directions
+levels(Seawatch_NOAA$comp_dir) <- c("N","NNE","NE", "ENE", "E", "ESE", "SE", "SSE",   #label compass directions
+                   "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
+
+### We also need a variable for a time series visualization, we could use year or month but we want to be more specific, the following code demonstrates how we combine our variables into 1
+Seawatch_NOAA <- Seawatch_NOAA |> 
+  mutate(day.time = paste0(yr,sep = "-", mm, sep = "-", dd, sep = " ", hr, sep = ":", "00", sep = ":", "00")) |> #use mutate function to create new variable, variable combines year, month, day, hour, and minute. This format allows us to parse the date and R will be able to work better with it
+  mutate(day.time = parse_date_time(day.time, orders = "ymd-HMS", select_formats = ymd_hms())) #use mutate to parse the variable we just created as a time. 
+
+
+### Create a capped count variable ###
+# The count variable has some very extreme observations, which may hide important information from the data. We created a cap of 10,000, anything over 10,000 will default to being 10,000. This is only used for one visual, where we use the count to as the color scale.
+Seawatch_NOAA <- Seawatch_NOAA |>
+  mutate(count2 = ifelse(count < 10000, count, 10000))
+
+
+### Finally we will clean the names for visualization use ###
+Seawatch_NOAA <- clean_names(Seawatch_NOAA)
+```
+
+This concludes the all the data preparation. Next we will do a deep dive into the visualizations, providing step-by-step instructions on what to do. 
+
+### Step 5: Visualizations
+
+```{r}
+### Load any necessary packages ###
+### ggplot2 is the main graph package in R, and lubridate helps format dates for us ###
+library(ggplot2)
+library(lubridate)
+```
+
+#### Visualization 1: Polar Coordinate Point Graph
+
+```{r, warning = FALSE}
+Seawatch_NOAA |> #Start by selecting the data
+ ggplot() + # Initialize ggplot, from here on, "+" indicates we are making additions/changes to our graph
+ aes(x = wdir_deg_t, y = count, colour = wspd_mph, shape = common_name) + #set the asthetics, in this case, we have wind direction on our x-axis, count on our y-axis, the wind speed is our color, and bird species is our shape.
+ geom_jitter(position = position_jitter(height = 0.3, width = 0.2)) + #set the geometry, in this case, we have a jitter graph (essentially a point plot), we use jitter to expose overlapping points
+ scale_color_viridis_c(option = "viridis", direction = 1) + # set the color scale
+ theme_minimal() + #set the theme
+  coord_polar() + #change our coordinate system to polar, this makes the graph circular instead of a typical coordinate plane.
+  scale_y_continuous(transform = "sqrt") + #Scales our y-axis, this case count, using the square root function. This prevents extreme points from being too impactful.
+  scale_x_continuous(n.breaks = 12, limits = c(0, 360)) + # set the number of breaks for wind direction. 
+  labs(x = "Wind Direction", y = "Count", color = "Wind Speed MPH", title = "Wind direction and bird counts", shape = "Species") + # labels each axis, adds a label for the color scale and shape, and a title
+  theme(legend.position = "right") #sets the position of our color legend
+```
+
+Note that the wind direction has some missing observations. As long as we follow the data cleaning guide, the above visual will be produced. 
+
+#### Visualization 2: Polar Compass Point
+
+```{r}
+Seawatch_NOAA |> #select the data
+ filter(!is.na(comp_dir)) |> #filter out missing observations
+ ggplot() + #initialize ggplot
+ aes(x = comp_dir, y = count, colour = pres_h_pa, shape = common_name) + #set aesthetics, we have our x axis as the compass direction, y as the count, and color as the atmospheric pressure
+ geom_jitter(position = position_jitter(height = 0.3, width = 0.2)) + #set the geometry, in this case, we have a jitter graph (essentially a point plot), we use jitter to expose overlapping points
+ scale_color_viridis_c(option = "viridis", direction = 1) + #set our color scale to viridis
+ theme_minimal() + #sets the theme
+  coord_polar(start = -0.18) + #change our coordinate system to polar, this makes the graph circular instead of a typical coordinate plane.
+  guides(color = guide_colorbar(order = 0), shape = guide_legend(order = 1)) + # orders the legend so that format is consistent among our graphs
+  labs(x = "Wind Direction", y = "Count", color = "Atmosperic Pressure", title = "Wind direction and Bird count for Surf Scoter", shape = "Species") + # labels each axis, adds a label for the color scale and shape, and a title
+  theme(legend.position = "right") #sets our legend position
+```
+
+Note that the compass directions may have some missing values, due to NOAA buoy going down. Similarly to the previous visual, as long as you follow the data cleaning guide this graph will be produced.
+
+#### Visualization 3: Polar Compass Bar
+
+```{r}
+Seawatch_NOAA |> #select the data
+ filter(!is.na(comp_dir), !is.na(pres_h_pa)) |> #filter out missing observations for comp_dir and pres_h_pa
+ ggplot() + #initialize ggplot
+ aes(x = comp_dir, y = count, fill = factor(cut(pres_h_pa, breaks = 6))) + #set aesthetics, our x axis is compass direction, y is count, and the color is the air pressure, factor(cut()) cuts air pressure so that it is binned instead of continuous
+ geom_col() + #set geometry to column
+ scale_fill_viridis_d(option = "viridis", direction = 1) + #set the color scale
+ theme_minimal() + #set the theme
+  coord_polar(start = -0.18) + #change our coordinate system to polar, this makes the graph circular instead of a typical coordinate plane.
+  labs(x = "Wind Direction", y = "Count", fill = "Atmosperic Pressure", title = "Wind direction and Bird count") + #label each axis, add a label for the color scale, and a title
+  theme(legend.position = "right") #set the legend position
+
+```
+
+#### Visualization 4: Histogram
+
+```{r}
+Seawatch_NOAA |> #select Seawatch data
+  filter(!is.na(atmp_deg_c)) |> # filter out missing data from air temp
+        ggplot() + #initialize ggplot 
+        geom_col(aes(x = cut( (atmp_deg_c * 9 / 5 + 32), breaks = 9, labels = c("45-47", "47-49", "49-51", "51-53", "53-55", "55-57", "57-59", "59-61", "61-63")), y = count, fill = common_name), position = "stack") + # set geometry and aesthetics. Cut the air temperature so that bins were thicker
+        scale_fill_viridis_d() + # set the color scale
+        theme_classic() + #set the theme
+        labs(x = "Air Temperature in Degrees Fahrenheit", y = "Count", fill = "Species", title = "Count and Air Temperature for each species") + #add axis labels, labeled color scale, and added a title
+        theme(legend.position = "top") #set the legend location
+```
+
+#### Visualization 5: Heatmap
+
+```{r}
+Seawatch_NOAA |> #select Seawatch data
+        ggplot(aes(x = factor(cut((wtmp_deg_c * 9 / 5 + 32), labels = c("52-54", "54-56", "56-58", "58-60", "60-62"), breaks = 5)), #initialize ggplot and set aesthetics. 
+                   y = common_name, fill = count2)) + 
+        geom_tile() + #set geometry (this is a heatmap geometry)
+        scale_fill_viridis_c(begin = 0.2, trans = "log") + #set the color scale and transform count using log(), this prevents large numbers from affecting the scale too extremely
+        theme_classic() + #set the theme
+        labs(y = "", 
+             x = "Water Temperature in Fahrenheit", 
+             fill = "Scaled Count",
+             title = "Count Concentration for each species at a specific water temperature") #set labels for axis, label the colorbar, add a title
+```
+
+#### Visualization 6: Time Series Smooth
+
+```{r}
+Seawatch_NOAA |> #select seawatch data
+  ggplot() + #initialize ggplot
+        geom_smooth(aes(x = day.time, y = count, color = common_name), alpha = 0) + #set geometry and aesthetics for count, alpha = 0 removes the confidence intervals which geom_smooth produces
+        scale_y_log10(sec.axis = sec_axis(~sqrt(.)/2, name = "Wind Speed")) + #scale the y axis, create a second axis that represents wind speed
+        geom_smooth(aes(x = day.time, y = 2 * (wspd_mph)^2, color = "Wind speed"), linetype = 2, alpha = 0) + #set geometry and aesthetics for wind speed, layers plot on top of the previous geom_smooth
+        theme_minimal() + #set the theme
+        labs(x = "Date and Time",
+             y = "Bird Count",
+             color = "") + #add labels for axis, remove color label
+        theme(legend.title = element_blank()) + # remove legend
+        scale_color_viridis_d() #set color scale
+```
+
+#### Visualization 7: Time Series Line
+
+```{r}
+Seawatch_NOAA |> #select seawatch data
+  ggplot() + #initialize ggplot
+        geom_line(aes(x = day.time, y = count, color = common_name)) + #set geometry and aesthetics
+        scale_y_log10(sec.axis = sec_axis(~sqrt(.)/2 , name = "Wind Speed")) + #scale the y axis and create a second axis
+        geom_line(aes(x = day.time, y =  2 * wspd_mph^2, color = "Wind speed"), linetype = 2) + #layer a new geometry for wind speed
+        theme_minimal() + #set the theme
+        scale_color_viridis_d(end = 0.8) + #set the color scale
+        labs(x = "Day and Time", y = "Count", color = "") #label x and y axis, remove color label
+```
+
