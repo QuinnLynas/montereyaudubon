@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "locale": "en_US",
+  "platform": "4.4.2",
+  "metadata": {
+    "appmode": "static",
+    "primary_rmd": null,
+    "primary_html": "Guide/data_cleaning_guide.html",
+    "content_category": "site",
+    "has_parameters": false
+  },
+  "packages": null,
+  "files": {
+    "Guide/250131_SeawatchDownload.csv": {
+      "checksum": "97350d077019e942e34bb082271a99cd"
+    },
+    "Guide/data_cleaning_guide.html": {
+      "checksum": "ee21211a17f4956baf1d68ac617841d7"
+    },
+    "Guide/data_cleaning_guide.Rmd": {
+      "checksum": "f5319afb3488d5b87194e3dc1177928e"
+    },
+    "Guide/noaa15-24.csv": {
+      "checksum": "f4aec3eaf8ea70bb5763cf5a6f3da6cf"
+    },
+    "Guide/Shiny_web_app/app.R": {
+      "checksum": "480b39f7a1b19321e17fd5865ddcc025"
+    }
+  },
+  "users": null
+}
