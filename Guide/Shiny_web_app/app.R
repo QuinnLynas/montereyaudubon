@@ -184,4 +184,6 @@ server <- function(input, output) {
 
 
 # Run the application 
-shinyApp(ui = ui, server = server)
+app <- shinyApp(ui = ui, server = server)
+
+runApp(app)
