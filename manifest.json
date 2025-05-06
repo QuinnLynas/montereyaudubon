@@ -6,7 +6,7 @@
     "appmode": "static",
     "primary_rmd": null,
     "primary_html": "Guide/data_cleaning_guide.html",
-    "content_category": "site",
+    "content_category": null,
     "has_parameters": false
   },
   "packages": null,
