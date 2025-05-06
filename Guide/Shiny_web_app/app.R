@@ -12,9 +12,9 @@ library(ggplot2)
 library(dplyr)
 
 data <- Seawatch_NOAA |>
-  select(date, count, common_name, atmp_deg_c, wdir_deg_t, wspd_mph, comp_dir, pres_h_pa, atmp_pres_bin, wtmp_deg_c, count2, day.time, b_windscale)
+  select(date, count, common_name, atmp_deg_c, wdir_deg_t, wspd_mph, comp_dir, pres_h_pa, wtmp_deg_c, count2, day_time, beaufort_ws)
 
-plotdata <- plots
+#plotdata <- plots
 
 # Define UI 
 ui <- fluidPage(
@@ -156,9 +156,9 @@ server <- function(input, output) {
     }else if(input$plot == "Time Series") {
       plot1 <- filteredData() |>
         ggplot() +
-        geom_smooth(aes(x = day.time, y = count, color = common_name), alpha = 0) +
+        geom_smooth(aes(x = day_time, y = count, color = common_name), alpha = 0) +
         scale_y_log10(sec.axis = sec_axis(~sqrt(.)/2, name = "Wind Speed")) +
-        geom_smooth(aes(x = day.time, y = 2 * (wspd_mph)^2, color = "Wind speed"), linetype = 2, alpha = 0) +
+        geom_smooth(aes(x = day_time, y = 2 * (wspd_mph)^2, color = "Wind speed"), linetype = 2, alpha = 0) +
         theme_minimal() + 
         labs(x = "Date and Time",
              y = "Bird Count",
@@ -170,9 +170,9 @@ server <- function(input, output) {
     }else if(input$plot == "Time Series Line"){
       filteredData() |>
         ggplot() + 
-        geom_line(aes(x = day.time, y = count, color = common_name)) + 
+        geom_line(aes(x = day_time, y = count, color = common_name)) + 
         scale_y_log10(sec.axis = sec_axis(~sqrt(.)/2 , name = "Wind Speed")) + 
-        geom_line(aes(x = day.time, y =  2 * wspd_mph^2, color = "Wind speed"), linetype = 2) +
+        geom_line(aes(x = day_time, y =  2 * wspd_mph^2, color = "Wind speed"), linetype = 2) +
         theme_minimal() + 
         scale_color_viridis_d(end = 0.8) + 
         labs(x = "Day and Time", y = "Count", color = "")
@@ -184,6 +184,6 @@ server <- function(input, output) {
 
 
 # Run the application 
-app <- shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server)
 
-runApp(app)
+
