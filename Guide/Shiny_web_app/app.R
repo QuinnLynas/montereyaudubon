@@ -11,7 +11,7 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 
-data <- bird_data |>
+data <- Seawatch_NOAA |>
   select(date, count, common_name, atmp_deg_c, wdir_deg_t, wspd_mph, comp_dir, pres_h_pa, atmp_pres_bin, wtmp_deg_c, count2, day.time, b_windscale)
 
 plotdata <- plots

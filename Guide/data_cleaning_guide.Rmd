@@ -96,7 +96,7 @@ by = join_by(date, HR)  #This is why we created a date and HR variable in our da
 
 ###JOIN OUR DATASETS TOGETHER###
 Seawatch_NOAA <- right_join(NOAA2015_2024, seawatch, by = by) #We use a right join so that we keep all info in our right dataset (seawatch), information in the NOAA data that doesn't match will not be included (i.e. the hours during the night will not be included)
-
+Seawatch_NOAA <- clean_names(Seawatch_NOAA)
 ```
 
 ### Step 4: Prepare Data for Analysis and Visualization
@@ -107,13 +107,13 @@ The data is ready to analyze. Next we want to create some new variables that wil
 ### First we will convert meters per second to miles per hour ###
 ### This will aid in making the beaufort wind scale ###
 Seawatch_NOAA <- Seawatch_NOAA |>
-  mutate(WSPD_mph = WSPD_m.s * 2.237, #convert meters per second to miles per hour
-         beaufort_ws = factor(cut(WSPD_mph, breaks = c(-0.001, 1, 3, 7, 12, 18, 24, 31, 38, 46, 54, 63, 72, 83)))) #specify the different ranges for the beaufort wind scale
+  mutate(wspd_mph = wspd_m_s * 2.237, #convert meters per second to miles per hour
+         beaufort_ws = factor(cut(wspd_mph, breaks = c(-0.001, 1, 3, 7, 12, 18, 24, 31, 38, 46, 54, 63, 72, 83)))) #specify the different ranges for the beaufort wind scale
 levels(Seawatch_NOAA$beaufort_ws) <- c("0", "1", "2", "3", "4", "5", "6", "7") #label each level for the wind scale
 
 ### Next we will add compass directions, which may help when interpretting wind directions in our visualizations ###
 Seawatch_NOAA <- Seawatch_NOAA |>
-  mutate(comp_dir = factor(cut(WDIR_degT, breaks = seq(0, 360, by = 22.5)))) #break up degress for compass directions
+  mutate(comp_dir = factor(cut(wdir_deg_t, breaks = seq(0, 360, by = 22.5)))) #break up degress for compass directions
 levels(Seawatch_NOAA$comp_dir) <- c("N","NNE","NE", "ENE", "E", "ESE", "SE", "SSE",   #label compass directions
                    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW")
 
